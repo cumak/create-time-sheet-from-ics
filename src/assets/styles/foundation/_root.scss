@@ -1,0 +1,25 @@
+@use 'variable' as *;
+
+:root{
+  --themeColor:#ef4d63;
+  --themeColor-lt:#fcf1ed;
+  --pointColor:#ac8839;
+  --linkColor:#87eaf9;
+  --bgColor:#f7f7f7;
+  --fontColor: #000;
+  //コンテンツ幅
+  --w:1160px;
+  --side: calc((100% - (var(--w) - calc(var(--w) * 0.05))) / 2);
+  // mediaQuery
+  --widthXL:#{$widthXL};
+  --widthLG:#{$widthLG};
+  --widthTab:#{$widthTab};
+  // font
+  --font-go-base: "Helvetica Neue",
+    Arial,
+    "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans",
+    Meiryo,
+    sans-serif;
+  --font-mi-base: "Hiragino Mincho ProN", "Yu Mincho","YuMincho", "HG明朝E", "ＭＳ Ｐ明朝", "ＭＳ 明朝", serif;
+}
