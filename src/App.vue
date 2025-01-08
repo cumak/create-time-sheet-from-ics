@@ -178,7 +178,7 @@ const copy = () => {
     </header>
   
     <main class="main">
-      <div class="lead">タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご使用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。</div>
+      <div class="lead">タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご利用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。</div>
       <div class="formArea">
         <form class="form" method="POST" enctype="multipart/form-data">
           <label class="form-label">
