@@ -194,8 +194,15 @@ const copy = () => {
       </div>
     </main>
     <footer class="footer">
+      <div class="footer-note">
+        <p>アップロードされたデータはサーバーに送信されず、すべての変換処理はブラウザ上で行われます。</p>
+      </div>
       <div class="footer-author">
-        created by <a href="https://cumak.net/" target="_blank"><span class="footer-author-icon"><img src="/cumak-mark.svg" alt="cumak.net" width="20" height="25"></span></a>
+        <div class="footer-author-inner">
+          created by
+          <a href="https://cumak.net/" target="_blank"><span class="footer-author-cumak"><img src="/cumak-mark.svg" alt="cumak.net" width="20" height="25"></span></a>
+          <a href="https://github.com/cumak/create-time-sheet-from-ics" target="_blank"><span class="footer-author-github"><img src="/icon-github-mark.svg" alt="github" width="32" height="32"></span></a>
+        </div>
       </div>
     </footer>
   </div>
@@ -369,17 +376,25 @@ const copy = () => {
 }
 
 .footer{
-  display: flex;
-  justify-content: flex-end;
-  background: #9e9e9e;
-  padding: 4px 10px;
-  color: #fff;
+  background: #f2f2f2;
+  border-top: 1px solid #ccc;
+  &-note{
+    padding: 10px 5% 5px;
+    font-size: 12px;
+  }
   &-author{
     display: flex;
-    align-items: center;
-    gap: 6px;
-    @include font-rem(13);
-    &-icon{
+    justify-content: flex-end;
+    padding: 4px 10px;
+    background: #9e9e9e;
+    color: #fff;
+    &-inner{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      @include font-rem(13);
+    }
+    &-cumak{
       display: flex;
       align-items: center;
       justify-content: center;
@@ -388,6 +403,13 @@ const copy = () => {
       border: 1px solid #e4e4e4;
       height: 32px;
       background: #f2f2f2;
+    }
+    &-github{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid #000;
     }
   }
 }
