@@ -14,7 +14,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "lint": "eslint . --fix",
-    "check": "bun run lint && bun run type-check && bun run test:e2e && bun run test:unit"
+    "check": "npm run lint && npm run type-check && npm run test:e2e && npm run test:unit"
   },
   "dependencies": {
     "@unhead/vue": "^1.11.14",
