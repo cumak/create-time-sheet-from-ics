@@ -1,5 +1,5 @@
 {
-  "name": "ics_processor",
+  "name": "create_time_sheet_from_ics",
   "version": "0.0.0",
   "private": true,
   "type": "module",

@@ -1,4 +1,4 @@
-# ics_processor
+# Create Time sheet from .ics
 
 This template should help get you started developing with Vue 3 in Vite.
 
