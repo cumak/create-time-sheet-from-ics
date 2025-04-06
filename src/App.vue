@@ -43,7 +43,7 @@ function readFileAsText(file: File): Promise<string> {
 
 // ICSファイル処理
 function processICS(content:string) {
-  const lines = content.split("\n");
+  const lines = parseIcsLines(content);
   type ColItem = {
     datetimeStart: Date | null;
     datetimeEnd: Date | null;
@@ -92,11 +92,13 @@ function processICS(content:string) {
     } else if (line.startsWith("DESCRIPTION:")) {
       let rawDescription = line
       rawDescription = rawDescription.replace("DESCRIPTION:", "")
-      const thisIndex = i;
+      let thisIndex = i;
       while(lines[thisIndex + 1]?.startsWith(" ")) {
-        rawDescription = nextLinePush(lines, i, rawDescription);
+        rawDescription += lines[thisIndex + 1].trim();
+        thisIndex++;
       }
       rawDescription = rawDescription.replace(/\\n/g, "\n")
+      rawDescription = rawDescription.replace(/\n$/, "");
       if (rawDescription.includes("\n")) {
         rawDescription = `"${rawDescription}"`;
       }
@@ -120,10 +122,13 @@ function processICS(content:string) {
   return resultString;
 }
 
-function nextLinePush(lines:string[], index:number, rawDescription:string) {
-  rawDescription += lines[index + 1].trim();
-  lines.splice(index + 1, 1);
-  return rawDescription;
+function parseIcsLines(content: string): string[] {
+  // CRLFやCRをLFに統一
+  const normalized = content.replace(/\r\n|\r/g, "\n");
+  // 折り返し（folded line）を結合：次の行がスペース or タブで始まるものは前の行と結合
+  const unfolded = normalized.replace(/\n[ \t]/g, "");
+  // 最終的に論理的な行ごとに分割
+  return unfolded.split("\n");
 }
 
 const convertTableHtml = (tableString:string) => {
@@ -178,7 +183,10 @@ const copy = () => {
     </header>
   
     <main class="main">
-      <div class="lead">タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご利用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。</div>
+      <div class="lead">
+        タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご利用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。<br>
+      </div>
+      <p class="text-s">エクセルの区切り文字はタブに対応しています。タブ以外の区切り位置になっている場合は正常に貼り付けできません。</p>
       <div class="formArea">
         <form class="form" method="POST" enctype="multipart/form-data">
           <label class="form-label">
