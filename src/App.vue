@@ -12,6 +12,7 @@ const content = ref("");
 const result = ref("");
 const table = ref("");
 const columnsList = ref([
+  { name: "日付", key: "date", show: true },
   { name: "タスク名", key: "summary", show: true },
   { name: "開始日時", key: "startDate", show: true },
   { name: "終了日時", key: "endDate", show: true },
@@ -54,12 +55,16 @@ function readFileAsText(file: File): Promise<string> {
 function processICS(content:string) {
   const lines = parseIcsLines(content);
   type ColItem = {
+    startDate: Date | null;
+    endDate: Date | null;
     datetimeStart: Date | null;
     datetimeEnd: Date | null;
     summary: string | null;
     description: string | null;
   };
   const colItem:ColItem = {
+    startDate: null,
+    endDate: null,
     datetimeStart: null,
     datetimeEnd: null,
     summary: null,
@@ -79,6 +84,8 @@ function processICS(content:string) {
     line = line.trim();
 
     if (line.startsWith("BEGIN:VEVENT")) {
+      colItem.startDate = null;
+      colItem.endDate = null;
       colItem.datetimeStart = null;
       colItem.datetimeEnd = null;
       colItem.summary = null;
@@ -90,18 +97,30 @@ function processICS(content:string) {
         currentOffset = hours * 60 + Math.sign(hours) * minutes;
       }
     } else if (line.startsWith("DTSTART")) {
-      const match = line.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
-      if (match) {
-        const [_, year, month, day, hour, minute] = match.map(Number);
+      const matchTime = line.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      const matchDate = line.match(/(\d{4})(\d{2})(\d{2})/);
+      if (matchTime) {
+        const [_, year, month, day, hour, minute] = matchTime.map(Number);
         const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
         colItem.datetimeStart = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
       }
+      if (matchDate) {
+        const [_, year, month, day] = matchDate.map(Number);
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        colItem.startDate = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
+      }
     } else if (line.startsWith("DTEND")) {
-      const match = line.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
-      if (match) {
-        const [_, year, month, day, hour, minute] = match.map(Number);
+      const matchTime = line.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      const matchDate = line.match(/(\d{4})(\d{2})(\d{2})/);
+      if (matchTime) {
+        const [_, year, month, day, hour, minute] = matchTime.map(Number);
         const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
         colItem.datetimeEnd = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
+      }
+      if (matchDate) {
+        const [_, year, month, day] = matchDate.map(Number);
+        const utcDate = new Date(Date.UTC(year, month - 1, day));
+        colItem.endDate = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
       }
     } else if (line.startsWith("SUMMARY:")) {
       colItem.summary = line.replace("SUMMARY:", "").trim().replace(/\\,/g, ",");
@@ -135,6 +154,9 @@ function processICS(content:string) {
       columnsList.value.forEach(needColumn => {
         if (needColumn.show) {
           let val = "";
+          if (needColumn.key === "date") {
+            val = colItem.startDate ? colItem.startDate.toISOString().slice(0, 10) : "";
+          }
           if (needColumn.key === "summary") val = colItem.summary || "";
           if (needColumn.key === "startDate") val = startStr;
           if (needColumn.key === "endDate") val = endStr;
@@ -161,7 +183,6 @@ function parseIcsLines(content: string): string[] {
 
 const convertTableHtml = (tableString:string) => {
   const rows = tableString.split("\n");
-  const durationIndex = getDurationColumnIndex(columnsList.value);
   const theadRows: string[] = [];
   const tbodyRows: string[] = [];
 
@@ -186,10 +207,7 @@ const convertTableHtml = (tableString:string) => {
         return `<th>${column}</th>`;
       }
 
-      if (i === durationIndex) {
-        return `<td class="al-r">${column}</td>`;
-      }
-      return `<td>${column}</td>`;
+      return `<td class="col-${getIndexFromIndex(i)}">${column}</td>`;
     });
 
     const tr = `<tr>${tds.join("")}</tr>`;
@@ -213,11 +231,14 @@ const convertTableHtml = (tableString:string) => {
   return tableHTML;
 }
 
-function getDurationColumnIndex(columns: { key: string, show: boolean }[]): number | false {
-  const trueColumn = columns.filter(column => column.show);
-  // durationのカラムが表示されている場合、そのインデックスを返す
-  const durationIndex = trueColumn.findIndex(column => column.key === "duration");
-  return durationIndex !== -1 ? durationIndex : false;
+function getIndexFromIndex(i:number) {
+  let key = "";
+  columnsList.value.forEach((column, index) => {
+    if (index === i) {
+      key = column.key;
+    }
+  });
+  return key || "";
 }
 
 watch(columnsList, () => {
@@ -257,6 +278,7 @@ const copy = () => {
           <ul>
             <li class="is-new">時間の設定がないものも表示するようになりました。</li>
             <li class="is-new">列を選択できるようになりました。</li>
+            <li class="is-new">日付の出力に対応しました。</li>
           </ul>
         </div>
       </div>
@@ -446,12 +468,24 @@ const copy = () => {
     min-width: 120%;
     margin-left: 5%;
   }
+  th{
+    white-space: nowrap;
+  }
   th, td{
     border: 1px solid #c6c6c6;
     padding: 4px 12px;
     @include font-rem(12);
     &.al-r{
       text-align: right;
+    }
+    &.col-duration{
+      text-align: right;
+    }
+    &.col-date{
+      white-space: nowrap;
+    }
+    &.col-startDate, &.col-endDate{
+      white-space: nowrap;
     }
   }
   th{

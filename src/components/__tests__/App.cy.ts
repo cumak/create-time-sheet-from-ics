@@ -22,10 +22,10 @@ describe("サンプルファイルのアップロードの正常性と結果表�
     // 行の数が7であることを確認
     cy.get(".resultTable tbody tr").should("have.length", 7);
     // needColumn-itemのチェックボックスをオフにすると、「タスク名」の列が非表示になることを確認
-    cy.get(".needColumn-item input[type='checkbox']").eq(0).uncheck();
+    cy.get(".needColumn-item input[type='checkbox']").eq(1).uncheck();
     cy.get(".resultTable thead th").should("not.contain.text", "タスク名");
     // needColumn-itemのチェックボックスをオンにすると、「タスク名」の列が表示されることを確認
-    cy.get(".needColumn-item input[type='checkbox']").eq(0).check();
+    cy.get(".needColumn-item input[type='checkbox']").eq(1).check();
     cy.get(".resultTable thead th").should("contain.text", "タスク名");
   });
 
@@ -41,6 +41,9 @@ describe("サンプルファイルのアップロードの正常性と結果表�
     cy.get(".resultTable").should("exist");
     // テーブルに特定の文字列が含まれていることを確認
     cy.get(".resultTable").should("contain.text", "Team Meeting");
-    cy.get(".resultTable").should("contain.html", '<td class="al-r">1.00</td>');
+    cy.get(".resultTable").should(
+      "contain.html",
+      '<td class="col-duration">1.00</td>'
+    );
   });
 });
