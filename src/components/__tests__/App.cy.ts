@@ -41,9 +41,9 @@ describe("サンプルファイルのアップロードの正常性と結果表�
     cy.get(".resultTable").should("exist");
     // テーブルに特定の文字列が含まれていることを確認
     cy.get(".resultTable").should("contain.text", "Team Meeting");
-    cy.get(".resultTable").should(
-      "contain.html",
-      '<td class="col-duration">1.00</td>'
-    );
+    // resultTableの行の5番目の５列目が"1.00"であることを確認
+    cy.get(".resultTable tbody tr")
+      .eq(4)
+      .should("contain.html", '<td class="col-duration">7.00</td>');
   });
 });

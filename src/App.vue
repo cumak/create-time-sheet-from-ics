@@ -14,8 +14,8 @@ const table = ref("");
 const columnsList = ref([
   { name: "日付", key: "date", show: true },
   { name: "タスク名", key: "summary", show: true },
-  { name: "開始日時", key: "startDate", show: true },
-  { name: "終了日時", key: "endDate", show: true },
+  { name: "開始日時", key: "datetimeStart", show: true },
+  { name: "終了日時", key: "datetimeEnd", show: true },
   { name: "所要時間", key: "duration", show: true },
   { name: "メモ", key: "memo", show: true },
 ]);
@@ -56,7 +56,6 @@ function processICS(content:string) {
   const lines = parseIcsLines(content);
   type ColItem = {
     startDate: Date | null;
-    endDate: Date | null;
     datetimeStart: Date | null;
     datetimeEnd: Date | null;
     summary: string | null;
@@ -64,7 +63,6 @@ function processICS(content:string) {
   };
   const colItem:ColItem = {
     startDate: null,
-    endDate: null,
     datetimeStart: null,
     datetimeEnd: null,
     summary: null,
@@ -85,7 +83,6 @@ function processICS(content:string) {
 
     if (line.startsWith("BEGIN:VEVENT")) {
       colItem.startDate = null;
-      colItem.endDate = null;
       colItem.datetimeStart = null;
       colItem.datetimeEnd = null;
       colItem.summary = null;
@@ -111,16 +108,10 @@ function processICS(content:string) {
       }
     } else if (line.startsWith("DTEND")) {
       const matchTime = line.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
-      const matchDate = line.match(/(\d{4})(\d{2})(\d{2})/);
       if (matchTime) {
         const [_, year, month, day, hour, minute] = matchTime.map(Number);
         const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
         colItem.datetimeEnd = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
-      }
-      if (matchDate) {
-        const [_, year, month, day] = matchDate.map(Number);
-        const utcDate = new Date(Date.UTC(year, month - 1, day));
-        colItem.endDate = new Date(utcDate.getTime() + currentOffset * 60 * 1000);
       }
     } else if (line.startsWith("SUMMARY:")) {
       colItem.summary = line.replace("SUMMARY:", "").trim().replace(/\\,/g, ",");
@@ -158,8 +149,8 @@ function processICS(content:string) {
             val = colItem.startDate ? colItem.startDate.toISOString().slice(0, 10) : "";
           }
           if (needColumn.key === "summary") val = colItem.summary || "";
-          if (needColumn.key === "startDate") val = startStr;
-          if (needColumn.key === "endDate") val = endStr;
+          if (needColumn.key === "datetimeStart") val = startStr;
+          if (needColumn.key === "datetimeEnd") val = endStr;
           if (needColumn.key === "duration") val = durationHours;
           if (needColumn.key === "memo") val = memo;
           row.push(val);
