@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useHead } from '@unhead/vue'
 
 useHead({
@@ -8,8 +8,16 @@ useHead({
 
 const isLoading = ref(false);
 const selectText = ref("Googleカレンダーからエクスポートした.icsファイルを選択");
+const content = ref("");
 const result = ref("");
 const table = ref("");
+const columnsList = ref([
+  { name: "タスク名", key: "summary", show: true },
+  { name: "開始日時", key: "startDate", show: true },
+  { name: "終了日時", key: "endDate", show: true },
+  { name: "所要時間", key: "duration", show: true },
+  { name: "メモ", key: "memo", show: true },
+]);
 
 const handleSubmit = async (e:Event) => {
   isLoading.value = true;
@@ -22,6 +30,7 @@ const handleSubmit = async (e:Event) => {
   }
   try {
     const fileContent = await readFileAsText(file);
+    content.value = fileContent;
     result.value = processICS(fileContent);
     selectText.value = file.name;
     table.value = convertTableHtml(result.value);
@@ -56,7 +65,14 @@ function processICS(content:string) {
     summary: null,
     description: null,
   }
-  let resultString = "タスク名\t開始日時\t終了日時\t所要時間\tメモ\n";
+  let resultString = "";
+  columnsList.value.forEach(column => {
+    if (column.show) {
+      resultString += column.name + "\t";
+    }
+  });
+  resultString = resultString.trim() + "\n";
+
   let currentOffset = 0;
 
   lines.forEach((line,i) => {
@@ -107,11 +123,27 @@ function processICS(content:string) {
         
       colItem.description = rawDescription;
     } else if (line.startsWith("END:VEVENT")) {
-      const durationHours = ((Number(colItem.datetimeEnd) - Number(colItem.datetimeStart)) / (1000 * 60 * 60)).toFixed(2);
+      let durationHours = ""
+      if(colItem.datetimeStart && colItem.datetimeEnd) {
+        durationHours = ((Number(colItem.datetimeEnd) - Number(colItem.datetimeStart)) / (1000 * 60 * 60)).toFixed(2);
+      }
       const startStr = colItem.datetimeStart?.toISOString().replace("T", " ").slice(0, 16) || "";
       const endStr = colItem.datetimeEnd?.toISOString().replace("T", " ").slice(0, 16) || "";
       const memo = colItem.description || "";
-      resultString += `${colItem.summary}\t${startStr}\t${endStr}\t${durationHours}\t${memo}\n`;
+
+      const row: string[] = [];
+      columnsList.value.forEach(needColumn => {
+        if (needColumn.show) {
+          let val = "";
+          if (needColumn.key === "summary") val = colItem.summary || "";
+          if (needColumn.key === "startDate") val = startStr;
+          if (needColumn.key === "endDate") val = endStr;
+          if (needColumn.key === "duration") val = durationHours;
+          if (needColumn.key === "memo") val = memo;
+          row.push(val);
+        }
+      });
+      resultString += row.join("\t") + "\n";
     }
   });
 
@@ -129,35 +161,72 @@ function parseIcsLines(content: string): string[] {
 
 const convertTableHtml = (tableString:string) => {
   const rows = tableString.split("\n");
-  const table = rows.map((row) => {
-    if(row === "") return "";
+  const durationIndex = getDurationColumnIndex(columnsList.value);
+  const theadRows: string[] = [];
+  const tbodyRows: string[] = [];
+
+  rows.forEach((row, rowIndex) => {
+    if (row === "") return;
     const columns = row.split("\t");
-    const tds = columns.map((column,i) => {
-      if (row === rows[0]) {
-        return `<th>${column}</th>`;
-      }
-      //最初が"の場合、次の行まで結合する
+    const tds = columns.map((column, i) => {
+      // 最初が " の場合、次の行まで結合
       if (column.startsWith('"')) {
-        let nextRow = rows[rows.indexOf(row) + 1];
+        let nextRow = rows[rowIndex + 1];
         while (!nextRow.endsWith('"')) {
           column += '<br>' + nextRow;
-          rows.splice(rows.indexOf(nextRow), 1);
-          nextRow = rows[rows.indexOf(row) + 1];
+          rows.splice(rowIndex + 1, 1);
+          nextRow = rows[rowIndex + 1];
         }
         column += '<br>' + nextRow;
-        rows.splice(rows.indexOf(nextRow), 1);
-        // "を削除
-        column = column.slice(1, -1);
+        rows.splice(rowIndex + 1, 1);
+        column = column.slice(1, -1); // 両端の " を削除
       }
-      if (i === 3) {
+
+      if (rowIndex === 0) {
+        return `<th>${column}</th>`;
+      }
+
+      if (i === durationIndex) {
         return `<td class="al-r">${column}</td>`;
       }
       return `<td>${column}</td>`;
     });
-    return `<tr>${tds.join("")}</tr>`;
+
+    const tr = `<tr>${tds.join("")}</tr>`;
+    if (rowIndex === 0) {
+      theadRows.push(tr);
+    } else {
+      tbodyRows.push(tr);
+    }
   });
-  return `<table class="resultTable">${table.join("")}</table>`;
+
+  const tableHTML = `
+  <table class="resultTable">
+    <thead>
+      ${theadRows.join("\n")}
+    </thead>
+    <tbody>
+      ${tbodyRows.join("\n")}
+    </tbody>
+  </table>
+  `;
+  return tableHTML;
 }
+
+function getDurationColumnIndex(columns: { key: string, show: boolean }[]): number | false {
+  const trueColumn = columns.filter(column => column.show);
+  // durationのカラムが表示されている場合、そのインデックスを返す
+  const durationIndex = trueColumn.findIndex(column => column.key === "duration");
+  return durationIndex !== -1 ? durationIndex : false;
+}
+
+watch(columnsList, () => {
+  if (result.value) {
+    // needColumnが変更された場合、再度変換を行う
+    result.value = processICS(content.value);
+    table.value = convertTableHtml(result.value); 
+  }
+}, { deep: true });
 
 const copy = () => {
   if(!result.value) {
@@ -179,10 +248,24 @@ const copy = () => {
     </header>
   
     <main class="main">
-      <div class="lead">
-        タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご利用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。<br>
+      <div class="summary">
+        <div class="lead">
+          タイムシート用に作った変換ツールです。Googleカレンダーをエクセルにしたい時にご利用ください。<br>※タイムゾーンがAsia/Tokyoの場合、時間は日本時間に変換します。<br>
+          <p class="lead-note">エクセルの区切り文字はタブに対応しています。タブ以外の区切り位置になっている場合は正常に貼り付けできません。</p>
+        </div>
+        <div class="developHistory">
+          <ul>
+            <li class="is-new">時間の設定がないものも表示するようになりました。</li>
+            <li class="is-new">列を選択できるようになりました。</li>
+          </ul>
+        </div>
       </div>
-      <p class="text-s">エクセルの区切り文字はタブに対応しています。タブ以外の区切り位置になっている場合は正常に貼り付けできません。</p>
+      <div class="needColumn">
+        <label v-for="column in columnsList" :key="column.key" class="needColumn-item">
+          <input type="checkbox" v-model="column.show" />
+          {{ column.name }}
+        </label>
+      </div>
       <div class="formArea">
         <form class="form" method="POST" enctype="multipart/form-data">
           <label class="form-label">
@@ -251,12 +334,28 @@ const copy = () => {
     padding-inline: 0;
   }
 }
-.lead{
+
+.summary{
+  display: flex;
+  gap: 50px;
   margin-top: 40px;
+  @include sp{
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+.lead{
   font-weight: bold;
   color: #333;
   @include sp{
     @include section-center-sp;
+  }
+  &-note{
+    @include font-rem(12);
+    color: #7d7d7d;
+    margin-top: 10px;
+    line-height: 1.5;
   }
 }
 
@@ -418,4 +517,63 @@ const copy = () => {
   }
 }
 
+.developHistory{
+  @include pc-tab{
+    padding-left: 20px;
+    border-left: 1px solid #c6c6c6;
+  }
+  @include sp{
+    margin-left: 0;
+    @include section-center-sp;
+  }
+  ul{
+    background: #faf9f1;
+    padding: 10px;
+    border-radius: 8px;
+    
+    li{
+      display: flex;
+      @include font-rem(12);
+      & + li{
+        margin-top: 10px;
+      }
+      &.is-new{
+        &::before{
+          content: "NEW";
+          height: fit-content;
+          color: #333;
+          margin-right: 5px;
+          border: 1px solid #ca0707;
+          padding: 2px 4px;
+          line-height: 1;
+          color: #ca0707;
+          @include font-rem(10);
+        }
+      }
+    }
+  }
+}
+
+.needColumn{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 20px;
+  @include sp{
+    gap: 10px;
+    @include section-center-sp;
+  }
+  &-item{
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    @include font-rem(14);
+    color: #333;
+    input{
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
 </style>
