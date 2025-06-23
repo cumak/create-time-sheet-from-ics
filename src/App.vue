@@ -107,15 +107,11 @@ function processICS(content:string) {
         
       colItem.description = rawDescription;
     } else if (line.startsWith("END:VEVENT")) {
-      if (colItem.datetimeStart && colItem.datetimeEnd) {
-        const durationHours = ((Number(colItem.datetimeEnd) - Number(colItem.datetimeStart)) / (1000 * 60 * 60)).toFixed(2);
-        const startStr = colItem.datetimeStart.toISOString().replace("T", " ").slice(0, 16);
-        const endStr = colItem.datetimeEnd.toISOString().replace("T", " ").slice(0, 16);
-
-        const memo = colItem.description || "";
-
-        resultString += `${colItem.summary}\t${startStr}\t${endStr}\t${durationHours}\t${memo}\n`;
-      }
+      const durationHours = ((Number(colItem.datetimeEnd) - Number(colItem.datetimeStart)) / (1000 * 60 * 60)).toFixed(2);
+      const startStr = colItem.datetimeStart?.toISOString().replace("T", " ").slice(0, 16) || "";
+      const endStr = colItem.datetimeEnd?.toISOString().replace("T", " ").slice(0, 16) || "";
+      const memo = colItem.description || "";
+      resultString += `${colItem.summary}\t${startStr}\t${endStr}\t${durationHours}\t${memo}\n`;
     }
   });
 
