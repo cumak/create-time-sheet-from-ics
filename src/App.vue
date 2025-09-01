@@ -23,23 +23,33 @@ const columnsList = ref([
 const handleSubmit = async (e:Event) => {
   isLoading.value = true;
   const target = e.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if(!file) {
+  if(!target.files || !target.files?.length) {
     alert("ファイルが選択されていません");
     isLoading.value = false;
     return;
   }
+  const files = Array.from(target.files);
+  refClear();
   try {
-    const fileContent = await readFileAsText(file);
-    content.value = fileContent;
-    result.value = processICS(fileContent);
-    selectText.value = file.name;
+    for (const [i, file] of files.entries()) {
+      const fileContent = await readFileAsText(file as File);
+      content.value += fileContent;
+      result.value += processICS(fileContent,i);
+      selectText.value = selectText.value ? `${selectText.value}<br>${file.name}` : file.name;
+    }
     table.value = convertTableHtml(result.value);
   } catch (error) {
     console.error("Failed to read file:", error);
   } finally {
     isLoading.value = false;
   }
+}
+
+function refClear() {
+  content.value = "";
+  result.value = "";
+  table.value = "";
+  selectText.value = "";
 }
 
 function readFileAsText(file: File): Promise<string> {
@@ -52,8 +62,8 @@ function readFileAsText(file: File): Promise<string> {
 }
 
 // ICSファイル処理
-function processICS(content:string) {
-  const lines = parseIcsLines(content);
+function processICS(fileContent:string, i?:number) {
+  const lines = parseIcsLines(fileContent);
   type ColItem = {
     startDate: Date | null;
     datetimeStart: Date | null;
@@ -69,12 +79,14 @@ function processICS(content:string) {
     description: null,
   }
   let resultString = "";
-  columnsList.value.forEach(column => {
-    if (column.show) {
-      resultString += column.name + "\t";
-    }
-  });
-  resultString = resultString.trim() + "\n";
+  if(!i) {
+    columnsList.value.forEach(column => {
+      if (column.show) {
+        resultString += column.name + "\t";
+      }
+    });
+    resultString = resultString.trim() + "\n";
+  }
 
   let currentOffset = 0;
 
@@ -163,9 +175,9 @@ function processICS(content:string) {
   return resultString;
 }
 
-function parseIcsLines(content: string): string[] {
+function parseIcsLines(fileContent: string): string[] {
   // CRLFやCRをLFに統一
-  const normalized = content.replace(/\r\n|\r/g, "\n");
+  const normalized = fileContent.replace(/\r\n|\r/g, "\n");
   // 折り返し（folded line）を結合：次の行がスペース or タブで始まるものは前の行と結合
   const unfolded = normalized.replace(/\n[ \t]/g, "");
   // 最終的に論理的な行ごとに分割
@@ -224,7 +236,8 @@ const convertTableHtml = (tableString:string) => {
 
 function getIndexFromIndex(i:number) {
   let key = "";
-  columnsList.value.forEach((column, index) => {
+  const showedColumns = columnsList.value.filter(col => col.show);
+  showedColumns.forEach((column, index) => {
     if (index === i) {
       key = column.key;
     }
@@ -267,9 +280,9 @@ const copy = () => {
         </div>
         <div class="developHistory">
           <ul>
+            <li class="is-new">複数ファイルの読み込みに対応しました。</li>
             <li class="is-new">時間の設定がないものも表示するようになりました。</li>
             <li class="is-new">列を選択できるようになりました。</li>
-            <li class="is-new">日付の出力に対応しました。</li>
           </ul>
         </div>
       </div>
@@ -282,8 +295,8 @@ const copy = () => {
       <div class="formArea">
         <form class="form" method="POST" enctype="multipart/form-data">
           <label class="form-label">
-            <input type="file" name="file" accept=".ics" required @change="handleSubmit">
-            <span class="form-text">{{selectText}}</span>
+            <input type="file" name="file" accept=".ics" multiple required @change="handleSubmit">
+            <span class="form-text" v-html="selectText"></span>
           </label>
         </form>
         <div class="loading" v-if="isLoading"></div>
@@ -419,6 +432,7 @@ const copy = () => {
     @include font-rem(14);
     color: #7d7d7d;
     font-weight: bold;
+    word-break: break-all;
   }
 }
 
@@ -494,6 +508,7 @@ const copy = () => {
   margin-left: 60px;
   cursor: pointer;
   font-weight: bold;
+  white-space: nowrap;
   @include sp{
     margin-left: 0;
   }
